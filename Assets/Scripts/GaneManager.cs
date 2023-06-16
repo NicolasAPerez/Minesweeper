@@ -6,11 +6,15 @@ using Random = System.Random;
 
 public class GaneManager : MonoBehaviour
 {
+    public GameObject GOTile;
+    static Sprite[] TileContents;
+
     private class Tile
     {
         bool revealed;
-        bool isMine;
+        public bool isMine;
         int surroudingMines;
+        GameObject obj;
 
         public Tile(bool mine)
         {
@@ -18,10 +22,46 @@ public class GaneManager : MonoBehaviour
             isMine = mine;
             surroudingMines = 0;
         }
+
+        public bool AssignObj(GameObject obj, int x = 0, int y = 0)
+        {
+            if (obj == null)
+            {
+                return false;
+            }
+            this.obj = obj;
+            obj.transform.localPosition = new Vector2(x, y);
+            return true;
+        }
+
+        public int incMines()
+        {
+            surroudingMines++;
+            changeSprite();
+            return surroudingMines;
+        }
+
+        public void changeSprite()
+        {
+            SpriteRenderer sr = obj.GetComponent<SpriteRenderer>();
+
+            if (isMine)
+            {
+                sr.sprite = TileContents[0];
+            }
+            else if (surroudingMines == 0)
+            {
+                sr.sprite = null;
+            }
+            else
+            {
+                sr.sprite = TileContents[surroudingMines + 1];
+            }
+        }
     }
 
     Tile[,] gameMap;
-    Sprite[] TileContents = Sprite
+    
 
 
 
@@ -30,6 +70,8 @@ public class GaneManager : MonoBehaviour
     
     void Start()
     {
+        TileContents = Resources.LoadAll<Sprite>("TileOverlay") as Sprite[];
+        createGame(11, 11, 35);
         
     }
 
@@ -84,6 +126,31 @@ public class GaneManager : MonoBehaviour
             for (int i = 0; i < x; i++)
             {
                 gameMap[i, j] = new Tile(mineLocations[i * j + i]);
+                gameMap[i, j].AssignObj(GameObject.Instantiate(GOTile), i - x/2, -1* (j - y/2));
+
+                if (mineLocations[i * j + i])
+                {
+                    if (i > 0)
+                        gameMap[i - 1, j].incMines();
+                    if (j > 0)
+                        gameMap[i, j - 1].incMines();
+                    if (i > 0 && j > 0)
+                        gameMap[i - 1, j - 1].incMines();
+                    if (i < x - 1 && j > 0)
+                        gameMap[i + 1, j - 1].incMines();
+                    gameMap[i, j].changeSprite();
+                }
+                else
+                {
+                    if (i > 0 && gameMap[i - 1, j].isMine)
+                        gameMap[i, j].incMines();
+                    if (j > 0 && gameMap[i, j - 1].isMine)
+                        gameMap[i, j].incMines();
+                    if (i > 0 && j > 0 && gameMap[i - 1, j - 1].isMine)
+                        gameMap[i, j].incMines();
+                    if (i < x - 1 && j > 0 && gameMap[i + 1, j - 1].isMine)
+                        gameMap[i, j].incMines();
+                }
 
             }
         }

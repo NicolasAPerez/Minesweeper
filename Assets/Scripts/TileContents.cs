@@ -13,7 +13,7 @@ public class TileContents : MonoBehaviour
     // Start is called before the first frame update
     void Start()
     {
-        sr = GetComponent<SpriteRenderer>();
+        
         changeSprite();
     }
 
