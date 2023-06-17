@@ -8,19 +8,25 @@ public class GaneManager : MonoBehaviour
 {
     public GameObject GOTile;
     static Sprite[] TileContents;
+    static Sprite[] TileOver;
 
     private class Tile
     {
-        bool revealed;
+        public bool revealed;
         public bool isMine;
-        int surroudingMines;
+        public bool isFlagged;
+        public bool isHovered;
+        public int surroudingMines;
         GameObject obj;
+        SpriteRenderer sr;
 
         public Tile(bool mine)
         {
             revealed = false;
             isMine = mine;
+            isFlagged = false;
             surroudingMines = 0;
+            
         }
 
         public bool AssignObj(GameObject obj, int x = 0, int y = 0)
@@ -31,19 +37,20 @@ public class GaneManager : MonoBehaviour
             }
             this.obj = obj;
             obj.transform.localPosition = new Vector2(x, y);
+            sr = obj.GetComponent<SpriteRenderer>();
             return true;
         }
 
         public int incMines()
         {
             surroudingMines++;
-            changeSprite();
+            //changeSprite();
             return surroudingMines;
         }
 
         public void changeSprite()
         {
-            SpriteRenderer sr = obj.GetComponent<SpriteRenderer>();
+            revealed = true;
 
             if (isMine)
             {
@@ -56,6 +63,24 @@ public class GaneManager : MonoBehaviour
             else
             {
                 sr.sprite = TileContents[surroudingMines + 1];
+            }
+        }
+
+        public void toggleFlag()
+        {
+            if (!revealed)
+            {
+                isFlagged = !isFlagged;
+                sr.sprite = TileOver[(isFlagged) ? 2 : 0];
+            }
+        }
+
+        public void toggleHover()
+        {
+            if (!revealed && !isFlagged)
+            {
+                isHovered = !isHovered;
+                sr.sprite = TileOver[(isHovered) ? 1 : 0];
             }
         }
     }
@@ -71,14 +96,23 @@ public class GaneManager : MonoBehaviour
     void Start()
     {
         TileContents = Resources.LoadAll<Sprite>("TileOverlay") as Sprite[];
+        TileOver = Resources.LoadAll<Sprite>("Tiles") as Sprite[];
         createGame(11, 11, 35);
+
+        
         
     }
 
     // Update is called once per frame
     void Update()
     {
-        
+        if (Input.GetButtonDown("Fire1"))
+        {
+            Vector2 TilePosFloat = Camera.main.ScreenToWorldPoint(Input.mousePosition);
+            Vector2Int TilePos = new Vector2Int((int)Math.Round(TilePosFloat.x) + gameMap.GetLength(0)/2,(int) (-1 * Math.Round(TilePosFloat.y) + gameMap.GetLength(1)/2));
+            
+            revealTile(TilePos.x, TilePos.y);
+        }
     }
     
     //Shuffle based on Fisher-Yates method
@@ -138,7 +172,7 @@ public class GaneManager : MonoBehaviour
                         gameMap[i - 1, j - 1].incMines();
                     if (i < x - 1 && j > 0)
                         gameMap[i + 1, j - 1].incMines();
-                    gameMap[i, j].changeSprite();
+                    
                 }
                 else
                 {
@@ -154,5 +188,37 @@ public class GaneManager : MonoBehaviour
 
             }
         }
+    }
+
+    bool revealTile(int x, int y)
+    {
+        if (x < 0 || x > gameMap.GetLength(0) || y < 0 ||  y > gameMap.GetLength(1))
+        {
+            return false;
+        }
+
+        Tile selected = gameMap[x, y];
+        if (selected.revealed)
+        {
+            return false;
+        }
+
+        selected.changeSprite();
+        if (!selected.isMine && selected.surroudingMines <= 0)
+        {
+            for (int i = -1; i < 2; i++)
+            {
+                for (int j = -1; j < 2; j++)
+                {
+                    if (i != 0 && j != 0)
+                    {
+                        revealTile(i, j);
+                    }
+                }
+            }
+        }
+
+        return selected.isMine;
+
     }
 }
