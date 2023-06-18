@@ -6,9 +6,32 @@ using Random = System.Random;
 
 public class GaneManager : MonoBehaviour
 {
+    
+    //Difficuty Levels by Mine Percentage
+    readonly float NORMAL_MINES = 0.15f;
+    readonly float HARD_MINES = 0.20f;
+
+    //Difficulty Levels by Size
+    readonly Vector2Int NORMAL_MAP = new Vector2Int(11, 11);
+    readonly Vector2Int HARD_MAP = new Vector2Int(17, 17);
+
+    //Camera
+    readonly float NORMAL_CAMERA_SCALE = 7.7f;
+    readonly float NORMAL_CAMERA_Y = -1.1f;
+    
+    readonly float HARD_CAMERA_SCALE = 11.9f;
+    readonly float HARD_CAMERA_Y = -1.7f;
+
+    //Variables
     public GameObject GOTile;
     static Sprite[] TileContents;
     static Sprite[] TileOver;
+    static Score scoreboard;
+    bool gameCreated;
+
+    int numMines;
+
+
 
     private class Tile
     {
@@ -19,6 +42,7 @@ public class GaneManager : MonoBehaviour
         public int surroudingMines;
         GameObject obj;
         SpriteRenderer sr;
+        
 
         public Tile(bool mine)
         {
@@ -71,7 +95,11 @@ public class GaneManager : MonoBehaviour
             if (!revealed)
             {
                 isFlagged = !isFlagged;
-                sr.sprite = TileOver[(isFlagged) ? 2 : 0];
+                if (!isFlagged)
+                    scoreboard.incrementScore();
+                else
+                    scoreboard.decrementScore();
+                sr.sprite = TileOver[(isFlagged) ? 3 : 0];
             }
         }
 
@@ -97,7 +125,13 @@ public class GaneManager : MonoBehaviour
     {
         TileContents = Resources.LoadAll<Sprite>("TileOverlay") as Sprite[];
         TileOver = Resources.LoadAll<Sprite>("Tiles") as Sprite[];
-        createGame(11, 11, 35);
+        scoreboard = GameObject.Find("Score").GetComponent<Score>();
+
+        numMines = (int)(NORMAL_MAP.x * NORMAL_MAP.y * NORMAL_MINES);
+
+        scoreboard.setScore(numMines);
+        createEmptyField(NORMAL_MAP.x, NORMAL_MAP.y);
+        gameCreated = false;
 
         
         
@@ -110,8 +144,21 @@ public class GaneManager : MonoBehaviour
         {
             Vector2 TilePosFloat = Camera.main.ScreenToWorldPoint(Input.mousePosition);
             Vector2Int TilePos = new Vector2Int((int)Math.Round(TilePosFloat.x) + gameMap.GetLength(0)/2,(int) (-1 * Math.Round(TilePosFloat.y) + gameMap.GetLength(1)/2));
+
+            if (!gameCreated)
+            {
+                createGameWithStart(NORMAL_MAP.x, NORMAL_MAP.y, numMines, TilePos.x, TilePos.y);
+                gameCreated = true;
+            }
             
             revealTile(TilePos.x, TilePos.y);
+        }
+        else if (Input.GetButtonDown("Fire2"))
+        {
+            Vector2 TilePosFloat = Camera.main.ScreenToWorldPoint(Input.mousePosition);
+            Vector2Int TilePos = new Vector2Int((int)Math.Round(TilePosFloat.x) + gameMap.GetLength(0) / 2, (int)(-1 * Math.Round(TilePosFloat.y) + gameMap.GetLength(1) / 2));
+
+            gameMap[TilePos.x, TilePos.y].toggleFlag();
         }
     }
     
@@ -159,10 +206,10 @@ public class GaneManager : MonoBehaviour
         {
             for (int i = 0; i < x; i++)
             {
-                gameMap[i, j] = new Tile(mineLocations[i * j + i]);
+                gameMap[i, j] = new Tile(mineLocations[x * j + i]);
                 gameMap[i, j].AssignObj(GameObject.Instantiate(GOTile), i - x/2, -1* (j - y/2));
 
-                if (mineLocations[i * j + i])
+                if (mineLocations[x * j + i])
                 {
                     if (i > 0)
                         gameMap[i - 1, j].incMines();
@@ -189,16 +236,76 @@ public class GaneManager : MonoBehaviour
             }
         }
     }
+    
+    void createEmptyField(int x = 11, int  y = 11)
+    {
+        gameMap = new Tile[x, y];
+        for (int j = 0; j < y; j++)
+        {
+            for (int i = 0; i < x; i++)
+            {
+                gameMap[i, j] = new Tile(false);
+                gameMap[i, j].AssignObj(GameObject.Instantiate(GOTile), i - x / 2, -1 * (j - y / 2));
+            }
+        }
+    }
+
+    //Attempt to create a better start for the player, with not mines
+    void createGameWithStart(int x = 11, int y = 11, int numMines = 35, int xclick = 0, int yclick = 0)
+    {
+        
+        int numAttempts = 0;
+
+        do
+        {
+            bool[] mineLocations = randomizeMines(numMines, x * y);
+
+
+            for (int j = 0; j < y; j++)
+            {
+                for (int i = 0; i < x; i++)
+                {
+
+                    gameMap[i, j].isMine = mineLocations[x * j + i];
+                    gameMap[i, j].surroudingMines = 0;
+                    if (mineLocations[x * j + i])
+                    {
+                        if (i > 0)
+                            gameMap[i - 1, j].incMines();
+                        if (j > 0)
+                            gameMap[i, j - 1].incMines();
+                        if (i > 0 && j > 0)
+                            gameMap[i - 1, j - 1].incMines();
+                        if (i < x - 1 && j > 0)
+                            gameMap[i + 1, j - 1].incMines();
+
+                    }
+                    else
+                    {
+                        if (i > 0 && gameMap[i - 1, j].isMine)
+                            gameMap[i, j].incMines();
+                        if (j > 0 && gameMap[i, j - 1].isMine)
+                            gameMap[i, j].incMines();
+                        if (i > 0 && j > 0 && gameMap[i - 1, j - 1].isMine)
+                            gameMap[i, j].incMines();
+                        if (i < x - 1 && j > 0 && gameMap[i + 1, j - 1].isMine)
+                            gameMap[i, j].incMines();
+                    }
+
+                }
+            }
+        } while ((gameMap[xclick, yclick].isMine || gameMap[xclick, yclick].surroudingMines > 0) && numAttempts++ < 10);
+    }
 
     bool revealTile(int x, int y)
     {
-        if (x < 0 || x > gameMap.GetLength(0) || y < 0 ||  y > gameMap.GetLength(1))
+        if (x < 0 || x >= gameMap.GetLength(0) || y < 0 ||  y >= gameMap.GetLength(1))
         {
             return false;
         }
 
         Tile selected = gameMap[x, y];
-        if (selected.revealed)
+        if (selected.revealed || selected.isFlagged)
         {
             return false;
         }
@@ -210,9 +317,9 @@ public class GaneManager : MonoBehaviour
             {
                 for (int j = -1; j < 2; j++)
                 {
-                    if (i != 0 && j != 0)
+                    if (!(i == 0 && j == 0))
                     {
-                        revealTile(i, j);
+                        revealTile(x + i, y + j);
                     }
                 }
             }
