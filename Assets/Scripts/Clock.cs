@@ -9,6 +9,7 @@ public class Clock : MonoBehaviour
     public int StartingTime;
     GameObject[] digits;
     Sprite[] segmentDisplay;
+    GaneManager manager;
     float time;
     
 
@@ -20,6 +21,7 @@ public class Clock : MonoBehaviour
         digits = new GameObject[] {transform.Find("SecOne").gameObject, transform.Find("SecTen").gameObject, transform.Find("MinOne").gameObject, transform.Find("MinTen").gameObject };
         segmentDisplay = Resources.LoadAll<Sprite>("SevenSegmentDigits") as Sprite[];
         Enabled = false;
+        manager = GameObject.Find("TileTops").GetComponent<GaneManager>();
     }
 
     private void FixedUpdate()
@@ -29,8 +31,11 @@ public class Clock : MonoBehaviour
             if (CountDown)
             {
                 time = (time <= 0) ? 0 : time - Time.deltaTime;
-                Enabled = !(time <= 0);
-
+                
+                if (time <= 0)
+                {
+                    manager.endGame(false);
+                }
             }
             else
             {
@@ -59,6 +64,10 @@ public class Clock : MonoBehaviour
         setDigit(2, (int)time / 60 % 10);
         setDigit(1, (int)time % 60 / 10 % 10);
         setDigit(0, (int)time % 10);
+    }
+    public void resetClock()
+    {
+        time = StartingTime;
     }
 
 }
